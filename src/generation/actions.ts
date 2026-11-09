@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 
 import { getModel, parseSettings } from "./catalog";
-import type { GenerationPlane } from "./catalog/types";
+import type { GenerationPlane, Preset, PresetSource } from "./catalog/types";
 import {
   MissingCredentialsError,
   PLATFORM_KEY_COOKIE,
@@ -42,6 +42,25 @@ export async function submitGeneration(plane: GenerationPlane) {
   );
   const { path, body } = toPlatform(parsed);
   return createPlatformClient(await readCredentials()).submit(path, body);
+}
+
+const PRESET_MODELS: Record<PresetSource, string> = {
+  "genjutsu-restyle": "higgsfield/genjutsu/restyle/v1.0",
+};
+
+/** The style presets a preset setting offers. Answers with the reason instead
+    of throwing, so the picker can say why the list is empty. */
+export async function getPresets(
+  source: PresetSource,
+): Promise<{ presets: Preset[] } | { error: string }> {
+  const model = PRESET_MODELS[source];
+  if (!model) return { error: "Unknown preset list" };
+  try {
+    return { presets: await createPlatformClient(await readCredentials()).presets(model) };
+  } catch (caught) {
+    if (caught instanceof MissingCredentialsError) return { error: "Add your API key to load styles." };
+    return { error: caught instanceof Error ? caught.message : "Could not load styles." };
+  }
 }
 
 /** Every request in flight, answered in one round trip. Next dispatches server

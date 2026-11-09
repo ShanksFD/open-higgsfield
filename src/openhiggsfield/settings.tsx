@@ -1,6 +1,9 @@
 "use client";
 
-import type { ModelEntry } from "@/generation/catalog";
+import { useEffect, useState } from "react";
+
+import { getPresets } from "@/generation/actions";
+import type { ModelEntry, Preset, PresetSource } from "@/generation/catalog";
 import { useSettings } from "@/generation/stores/settings";
 
 import {
@@ -11,6 +14,66 @@ import {
 } from "./data";
 import { AudioIcon, ClockIcon, FormatIcon, GemIcon } from "./icons";
 import { Field, OptionList, Slider } from "./ui";
+
+/* A preset's display name rides beside its id in the settings store, so the
+   pill can name the pick without refetching the list. parseSettings drops it
+   before anything is submitted. */
+function presetNameKey(settingKey: string) {
+  return `${settingKey}Name`;
+}
+
+type PresetLoad = { presets: Preset[] } | { error: string };
+
+/* One fetch per list per page load; a failed fetch is forgotten so reopening
+   the picker tries again. */
+const presetLoads = new Map<PresetSource, Promise<PresetLoad>>();
+
+function loadPresets(source: PresetSource): Promise<PresetLoad> {
+  let load = presetLoads.get(source);
+  if (!load) {
+    load = getPresets(source).catch(() => ({ error: "Could not load styles." }));
+    presetLoads.set(source, load);
+    void load.then((result) => {
+      if ("error" in result) presetLoads.delete(source);
+    });
+  }
+  return load;
+}
+
+function PresetList({
+  source,
+  value,
+  onChange,
+}: {
+  source: PresetSource;
+  value: string;
+  onChange: (preset: Preset) => void;
+}) {
+  const [load, setLoad] = useState<PresetLoad | null>(null);
+  useEffect(() => {
+    let live = true;
+    void loadPresets(source).then((result) => {
+      if (live) setLoad(result);
+    });
+    return () => {
+      live = false;
+    };
+  }, [source]);
+
+  if (!load) return <p className="ohf-preset-note">Loading styles…</p>;
+  if ("error" in load) return <p className="ohf-preset-note">{load.error}</p>;
+  if (!load.presets.length) return <p className="ohf-preset-note">No styles available.</p>;
+  return (
+    <OptionList
+      options={load.presets.map((preset) => ({ value: preset.id, label: preset.name }))}
+      value={value}
+      onChange={(id) => {
+        const preset = load.presets.find((entry) => entry.id === id);
+        if (preset) onChange(preset);
+      }}
+    />
+  );
+}
 
 /* One drawn mark per setting the catalog is known to declare. Anything new
    arrives as its value alone rather than under a borrowed glyph — a wrong icon
@@ -60,6 +123,24 @@ export function SettingPill({
   const label = settingLabel(settingKey);
   const value = values[settingKey];
   const glyph = glyphFor(settingKey, value);
+
+  if (field.type === "preset") {
+    const name = settings.byModel[model.id]?.[presetNameKey(settingKey)];
+    const shown = typeof value === "string" && value && typeof name === "string" ? name : "Pick style";
+    return (
+      <button
+        type="button"
+        className="ohf-ctl ohf-tip"
+        data-tip={label}
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-label={`${label} — ${shown}`}
+        onClick={(event) => onOpen(event.currentTarget)}
+      >
+        <span className="ohf-ctl-value">{shown}</span>
+      </button>
+    );
+  }
 
   if (field.type === "boolean") {
     const on = value === true;
@@ -117,6 +198,26 @@ export function SettingPopover({
   if (!field || field.type === "boolean") return null;
 
   const label = settingLabel(settingKey);
+
+  if (field.type === "preset") {
+    return (
+      <div
+        className="ohf-popover ohf-popover--setting ohf-popover--list"
+        role="dialog"
+        aria-label={label}
+      >
+        <Field label={label}>
+          <PresetList
+            source={field.source}
+            value={typeof values[settingKey] === "string" ? (values[settingKey] as string) : ""}
+            onChange={(preset) =>
+              settings.set(model.id, { [settingKey]: preset.id, [presetNameKey(settingKey)]: preset.name })
+            }
+          />
+        </Field>
+      </div>
+    );
+  }
 
   if (field.type === "enum") {
     const value = typeof values[settingKey] === "string" ? (values[settingKey] as string) : field.default;

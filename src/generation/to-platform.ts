@@ -19,6 +19,11 @@ const MAP: Record<string, Mapper> = {
   "seedance-2.5": (plane) => mapSeedance(plane, "bytedance/seedance-2.5"),
   "seedance-2.5-edit": (plane) => mapSeedanceSource(plane, "bytedance/seedance-2.5/video-edit", false),
   "seedance-2.5-extend": (plane) => mapSeedanceSource(plane, "bytedance/seedance-2.5/video-extend", true),
+  "genjutsu-motion": (plane) => mapGenjutsu(plane, "higgsfield/genjutsu/motion-transfer/v1.0"),
+  "genjutsu-swap": (plane) => mapGenjutsu(plane, "higgsfield/genjutsu/object-swap/v1.0"),
+  "genjutsu-restyle": mapGenjutsuRestyle,
+  "genjutsu-light-motion": (plane) => mapGenjutsu(plane, "higgsfield/genjutsu-light/motion-transfer/v1.0"),
+  "genjutsu-light-swap": (plane) => mapGenjutsu(plane, "higgsfield/genjutsu-light/object-swap/v1.0"),
 };
 
 export function toPlatform(plane: GenerationPlane): Mapped {
@@ -77,6 +82,40 @@ function mapKling3(plane: GenerationPlane, prefix: string): Mapped {
   }
   body.aspect_ratio = plane.settings.aspectRatio;
   return { path: `${prefix}/text-to-video`, body };
+}
+
+function mapGenjutsu(plane: GenerationPlane, path: string): Mapped {
+  const video = urls(plane, "video")[0];
+  const refs = urls(plane, "reference");
+  if (!video || !refs.length) {
+    throw new Error("Genjutsu needs a source video and at least one reference image.");
+  }
+  return {
+    path,
+    body: {
+      video_url: video,
+      image_urls: refs,
+      prompt: plane.prompt.text,
+      resolution: plane.settings.resolution,
+    },
+  };
+}
+
+function mapGenjutsuRestyle(plane: GenerationPlane): Mapped {
+  const video = urls(plane, "video")[0];
+  const preset = plane.settings.style;
+  if (!video) throw new Error("Genjutsu Restyle needs a source video.");
+  if (typeof preset !== "string" || !preset) throw new Error("Pick a style for Genjutsu Restyle.");
+  return {
+    path: "higgsfield/genjutsu/restyle/v1.0",
+    body: {
+      video_url: video,
+      preset_id: preset,
+      image_urls: urls(plane, "reference"),
+      prompt: plane.prompt.text,
+      resolution: plane.settings.resolution,
+    },
+  };
 }
 
 function mapKlingMotion(plane: GenerationPlane, path: string): Mapped {

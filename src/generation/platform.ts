@@ -1,3 +1,4 @@
+import type { Preset } from "./catalog/types";
 import { toAuthorizationHeader } from "./credentials";
 
 const MODEL_ID = /^[a-z0-9][a-z0-9._/-]*$/i;
@@ -73,6 +74,10 @@ export function createPlatformClient(options: PlatformClientOptions) {
       if (!isModelId(model)) throw new PlatformError(400, { detail: "Invalid model" });
       return mapQueued(await send("POST", `/${model}`, input));
     },
+    async presets(model: string): Promise<Preset[]> {
+      if (!isModelId(model)) throw new PlatformError(400, { detail: "Invalid model" });
+      return mapPresets(await send("GET", `/models/${model}/presets`));
+    },
     async status(requestId: string): Promise<GenerationStatus> {
       if (!requestId) throw new PlatformError(400, { detail: "Missing request id" });
       return mapStatus(await send("GET", `/requests/${encodeURIComponent(requestId)}/status`));
@@ -90,6 +95,19 @@ function mapQueued(payload: unknown): QueuedGeneration {
     statusUrl: stringField(data, "status_url") ?? "",
     cancelUrl: stringField(data, "cancel_url") ?? "",
   };
+}
+
+function mapPresets(payload: unknown): Preset[] {
+  const items = asRecord(payload).items;
+  if (!Array.isArray(items)) return [];
+  return items.flatMap((item) => {
+    const data = asRecord(item);
+    const id = stringField(data, "id");
+    const name = stringField(data, "name");
+    if (!id || !name) return [];
+    const previewUrl = stringField(data, "preview_url");
+    return [{ id, name, ...(previewUrl ? { previewUrl } : {}) }];
+  });
 }
 
 function mapStatus(payload: unknown): GenerationStatus {

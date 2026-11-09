@@ -10,7 +10,13 @@ export type MediaItem = {
 export type SettingField =
   | { type: "enum"; values: readonly string[]; default: string }
   | { type: "range"; min: number; max: number; default: number; step?: number }
-  | { type: "boolean"; default: boolean };
+  | { type: "boolean"; default: boolean }
+  /** A preset id picked from a list the platform serves at runtime. "" until one is picked. */
+  | { type: "preset"; source: PresetSource; default: "" };
+
+export type PresetSource = "genjutsu-restyle";
+
+export type Preset = { id: string; name: string; previewUrl?: string };
 
 export type PlatformPaths = {
   text?: string;

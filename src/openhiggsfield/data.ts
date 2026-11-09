@@ -88,6 +88,7 @@ const SETTING_LABELS: Record<string, string> = {
   multiShots: "Multi-shot",
   keepOriginalSound: "Keep original sound",
   characterOrientation: "Orientation",
+  style: "Style",
 };
 
 /* A pill carries one word; "Generate audio" is a panel label, not a control on

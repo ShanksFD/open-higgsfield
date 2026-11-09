@@ -2233,6 +2233,13 @@
 /* One value per line. A wrapping row left every value at its own width on a
    ragged edge — eleven ratios read as a block to be decoded rather than a list
    to be scanned. */
+.ohf-preset-note {
+  margin: 0;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  color: var(--tx2);
+}
+
 .ohf-opts {
   position: relative;
   display: flex;

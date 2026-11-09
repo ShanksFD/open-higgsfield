@@ -1,5 +1,7 @@
 import type { ModelEntry } from "./types";
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function parseSettings(
   model: ModelEntry,
   raw: Record<string, unknown>,
@@ -10,6 +12,12 @@ export function parseSettings(
     if (field.type === "enum") {
       const picked = typeof value === "string" ? value : field.default;
       if (!field.values.includes(picked)) throw new Error(`Invalid ${key}`);
+      out[key] = picked;
+      continue;
+    }
+    if (field.type === "preset") {
+      const picked = typeof value === "string" ? value : field.default;
+      if (picked && !UUID_RE.test(picked)) throw new Error(`Invalid ${key}`);
       out[key] = picked;
       continue;
     }
