@@ -1,5 +1,7 @@
 import { put } from "@vercel/blob/client";
 
+import { mediaUrl } from "./media-url";
+
 export async function uploadMedia(file: File): Promise<{ url: string }> {
   const res = await fetch("/api/blob", {
     method: "POST",
@@ -17,6 +19,6 @@ export async function uploadMedia(file: File): Promise<{ url: string }> {
   if (typeof clientToken !== "string" || typeof pathname !== "string") {
     throw new Error("Failed to retrieve the client token");
   }
-  const blob = await put(pathname, file, { access: "public", token: clientToken });
-  return { url: blob.url };
+  const blob = await put(pathname, file, { access: "private", token: clientToken });
+  return { url: mediaUrl(blob.pathname) };
 }

@@ -12,7 +12,9 @@ import {
   encodeCredentials,
   parseCredentialInput,
 } from "./credentials";
+import { DEVICE_COOKIE } from "./device";
 import { createPlatformClient } from "./platform";
+import { signPlaneMedia } from "./private-media";
 import type { StatusResult } from "./platform";
 import { toPlatform } from "./to-platform";
 
@@ -33,10 +35,11 @@ export async function hasPlatformCredentials() {
 
 export async function submitGeneration(plane: GenerationPlane) {
   const model = getModel(plane.model);
-  const parsed: GenerationPlane = {
-    ...plane,
-    settings: parseSettings(model, plane.settings),
-  };
+  const jar = await cookies();
+  const parsed: GenerationPlane = await signPlaneMedia(
+    { ...plane, settings: parseSettings(model, plane.settings) },
+    jar.get(DEVICE_COOKIE)?.value,
+  );
   const { path, body } = toPlatform(parsed);
   return createPlatformClient(await readCredentials()).submit(path, body);
 }
